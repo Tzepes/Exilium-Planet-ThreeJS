@@ -1,17 +1,18 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { gsap } from 'gsap'
 import * as lil from 'lil-gui'
 import vertexShader from './shaders/planet/vertex.glsl'
 import fragmentShader from './shaders/planet/fragment.glsl'
 import atmosphereVertexShader from './shaders/atmosphere/atmosphereVertex.glsl'
 import atmosphereFragmentShader from './shaders/atmosphere/atmosphereFragment.glsl'
-
 const gui = new lil.GUI()
-
 //TODO: Reorganize code:
 /**
- * Camera
  * Scene/Renderer
+ * Camera
+ * Loading Overlay
  * Planet
  * Atmosphere
  * Environment
@@ -28,26 +29,8 @@ const gui = new lil.GUI()
  *      Long Lat functions
  */
 
-//Textures
-const planetColorTexture = new THREE.TextureLoader().load("img/Marsv2.png");
-planetColorTexture.colorSpace = THREE.SRGBColorSpace;
-const planetNormalMap = new THREE.TextureLoader().load("img/Mars v2_normalMap.png")
-const planetHeightMap = new THREE.TextureLoader().load("img/Mars v2_heightMap.png")
-const cloudsTexture = new THREE.TextureLoader().load("img/2k_earth_clouds.jpg")
-const cubeTextureLoader = new THREE.CubeTextureLoader()
-
-//Environment Map
-const environmentMapTexture = cubeTextureLoader.load([
-    'img/envMap/px.png',
-    'img/envMap/nx.png',
-    'img/envMap/py.png',
-    'img/envMap/ny.png',
-    'img/envMap/pz.png',
-    'img/envMap/nz.png'
-])
-
+//Scene
 const scene = new THREE.Scene()
-scene.add(new THREE.AxesHelper(5))
 
 //Camera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
@@ -63,6 +46,67 @@ const controls = new OrbitControls(camera, renderer.domElement)
 controls.maxDistance = 70;
 controls.minDistance = 20.3;
 //disable right click movement
+
+// Loading Overlay
+const loadingBGSIcon = document.querySelector('.loadingContainer')
+    //Loaders
+
+const loadingManager = new THREE.LoadingManager(
+    //Loaded
+    () =>{
+        gsap.to(overlayMaterial.uniforms.uAlpha, {duration: 1.5, value: 0})
+        loadingBGSIcon.style.display = 'none';
+        baseLocationUI.style.display = 'inline';
+    },
+    //Progress
+    () => {
+        loadingBGSIcon.style.display = 'inline';
+    }
+)
+const gltfLoader = new GLTFLoader(loadingManager)
+
+const overlayGeometry = new THREE.PlaneGeometry(2, 2, 1, 1)
+const overlayMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    uniforms: {
+        uAlpha: {value: 1}
+    },
+    vertexShader: `
+        void main()
+        {
+            gl_Position = vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform float uAlpha;    
+
+        void main()
+        {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, uAlpha);
+        }
+    `
+})
+const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial)
+scene.add(overlay)
+
+//Textures
+const planetColorTexture = new THREE.TextureLoader(loadingManager).load("img/Marsv2.png");
+planetColorTexture.colorSpace = THREE.SRGBColorSpace;
+const planetNormalMap = new THREE.TextureLoader(loadingManager).load("img/Mars v2_normalMap.png")
+const planetHeightMap = new THREE.TextureLoader(loadingManager).load("img/Mars v2_heightMap.png")
+const cloudsTexture = new THREE.TextureLoader(loadingManager).load("img/2k_earth_clouds.jpg")
+const cubeTextureLoader = new THREE.CubeTextureLoader(loadingManager)
+
+//Environment Map
+const environmentMapTexture = cubeTextureLoader.load([
+    'img/envMap/px.png',
+    'img/envMap/nx.png',
+    'img/envMap/py.png',
+    'img/envMap/ny.png',
+    'img/envMap/pz.png',
+    'img/envMap/nz.png'
+])
+
 
 // Stars particles
 const particlesGeometry = new THREE.BufferGeometry()
@@ -148,7 +192,7 @@ const cloudMesh = new THREE.Mesh( //TODO: hide clouds after a certain zoom
         depthWrite: false
 }));
 scene.add(cloudMesh);
-console.log(cloudMesh)
+console.log(cloudMesh.material)
 
 const cubeEnvMat = new THREE.MeshStandardMaterial();
 cubeEnvMat.metalness = 0.95
@@ -214,9 +258,10 @@ function CalculatePhi(x, y){
 }
 
 //DOM
+const baseLocationUI = document.querySelector("#ownBase");
 const longlatTextUI = document.querySelector("#longlatText");
 longlatTextUI.textContent = `Latitude:${latitude} Longitude:${longitude}`;
-const clickedLngLatTextUI = document.querySelector("#clickedLngLat")
+const clickedLngLatTextUI = document.querySelector("#clickedLngLat");
 clickedLngLatTextUI.textContent = `Latitude:${latitude} Longitude:${longitude}`;
 
 // Coordonates UI
