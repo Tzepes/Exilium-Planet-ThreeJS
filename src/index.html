@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exilium Planet Vite</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <!-- TODO: Display divs only after load completed (they appear before planet is done loading) -->
+    <!-- <div class="loadingContainer">
+        <img src="img/icons/BGSIcon.png" id="loadingIcon">
+    </div> -->
+    <div id="ownBase" class="baseLocationUI">
+        My Base
+        <p id="longlatText">Latitude:44 Longitude:26</p>
+        <p>Level 26</p>
+    </div>
+    <div id="clickedLocation" class="baseLocationUI">
+        Clicked location
+        <p id="clickedLngLat">Latitude: Longitude:</p>
+    </div>
+    <canvas class="webgl"></canvas>
+    <script type="module" src="./script.js"></script>
+</body>
+</html>
