@@ -12,7 +12,7 @@ const gui = new lil.GUI()
 /**
  * Scene/Renderer
  * Camera
- * Loading Overlay
+ * Loading Overlay (ShaderMaterial for loading mesh overlay moved under atmosphere phong material to allow it to render)
  * Planet
  * Atmosphere
  * Environment
@@ -47,7 +47,7 @@ controls.maxDistance = 70;
 controls.minDistance = 20.3;
 //disable right click movement
 
-// Loading Overlay
+// Loading 
 const loadingBGSIcon = document.querySelector('.loadingContainer')
     //Loaders
 
@@ -64,30 +64,6 @@ const loadingManager = new THREE.LoadingManager(
     }
 )
 const gltfLoader = new GLTFLoader(loadingManager)
-
-const overlayGeometry = new THREE.PlaneGeometry(2, 2, 1, 1)
-const overlayMaterial = new THREE.ShaderMaterial({
-    transparent: true,
-    uniforms: {
-        uAlpha: {value: 1}
-    },
-    vertexShader: `
-        void main()
-        {
-            gl_Position = vec4(position, 1.0);
-        }
-    `,
-    fragmentShader: `
-        uniform float uAlpha;    
-
-        void main()
-        {
-            gl_FragColor = vec4(0.0, 0.0, 0.0, uAlpha);
-        }
-    `
-})
-const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial)
-scene.add(overlay)
 
 //Textures
 const planetColorTexture = new THREE.TextureLoader(loadingManager).load("img/Marsv2.png");
@@ -203,6 +179,31 @@ cubeEnvMat.side = THREE.DoubleSide;
     //Debug Material
 // gui.add(planetMat, 'displacementScale').min(0).max(20).step(0.00001)
 gui.add(planetMat, 'wireframe')
+
+    // Loading Overlay
+    const overlayGeometry = new THREE.PlaneGeometry(2, 2, 1, 1)
+    const overlayMaterial = new THREE.ShaderMaterial({
+        transparent: true,
+        uniforms: {
+            uAlpha: {value: 1}
+        },
+        vertexShader: `
+            void main()
+            {
+                gl_Position = vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform float uAlpha;    
+    
+            void main()
+            {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, uAlpha);
+            }
+        `
+    })
+    const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial)
+    scene.add(overlay)
 
 /**
  * Sferical coordonates
