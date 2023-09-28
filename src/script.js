@@ -3,11 +3,17 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { gsap } from 'gsap'
 import * as lil from 'lil-gui'
+import Stats from 'stats.js'
 import vertexShader from './shaders/planet/vertex.glsl'
 import fragmentShader from './shaders/planet/fragment.glsl'
 import atmosphereVertexShader from './shaders/atmosphere/atmosphereVertex.glsl'
 import atmosphereFragmentShader from './shaders/atmosphere/atmosphereFragment.glsl'
 const gui = new lil.GUI()
+
+const stats = new Stats()
+stats.showPanel(0)
+document.body.appendChild(stats.dom)
+
 //TODO: Reorganize code:
 /**
  * Scene/Renderer
@@ -43,13 +49,19 @@ document.body.appendChild(renderer.domElement)
 
     //Orbit Controls
 const controls = new OrbitControls(camera, renderer.domElement) 
+controls.enableDamping = true;
+controls.dampingFactor = 0.12;
 controls.maxDistance = 70;
 controls.minDistance = 20.3;
+controls.enabled = false; // controls disabled until loading complete
+controls.enablePan = false;
+controls.zoomToCursor = true;
 //disable right click movement
 
 // Loading 
 const loadingBGSIcon = document.querySelector('.loadingContainer')
     //Loaders
+let loaded = false;
 
 const loadingManager = new THREE.LoadingManager(
     //Loaded
@@ -57,6 +69,9 @@ const loadingManager = new THREE.LoadingManager(
         gsap.to(overlayMaterial.uniforms.uAlpha, {duration: 1.5, value: 0})
         loadingBGSIcon.style.display = 'none';
         baseLocationUI.style.display = 'inline';
+        controls.enabled = true;
+        
+        loaded = true;
     },
     //Progress
     () => {
@@ -115,20 +130,6 @@ scene.add(stars)
 //Material
 const radius = 20;
 
-// const planetMat = new THREE.ShaderMaterial({
-//     vertexShader: vertexShader,
-//     fragmentShader: fragmentShader,
-//     uniforms: {
-//         planetTexture: {
-//             value: new THREE.TextureLoader().load('img/Marsv2.png')
-//         },
-//         planetHeightMap: {
-//             value: new THREE.TextureLoader().load('img/Mars v2_heightMap.png')
-//         }
-//     },
-//     // displacementScale: 0.5
-// });
-
 const planetMat = new THREE.MeshStandardMaterial({
     displacementScale: 0.5
 });
@@ -168,7 +169,6 @@ const cloudMesh = new THREE.Mesh( //TODO: hide clouds after a certain zoom
         depthWrite: false
 }));
 scene.add(cloudMesh);
-console.log(cloudMesh.material)
 
 const cubeEnvMat = new THREE.MeshStandardMaterial();
 cubeEnvMat.metalness = 0.95
@@ -180,30 +180,30 @@ cubeEnvMat.side = THREE.DoubleSide;
 // gui.add(planetMat, 'displacementScale').min(0).max(20).step(0.00001)
 gui.add(planetMat, 'wireframe')
 
-    // Loading Overlay
-    const overlayGeometry = new THREE.PlaneGeometry(2, 2, 1, 1)
-    const overlayMaterial = new THREE.ShaderMaterial({
-        transparent: true,
-        uniforms: {
-            uAlpha: {value: 1}
-        },
-        vertexShader: `
-            void main()
-            {
-                gl_Position = vec4(position, 1.0);
-            }
-        `,
-        fragmentShader: `
-            uniform float uAlpha;    
-    
-            void main()
-            {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, uAlpha);
-            }
-        `
-    })
-    const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial)
-    scene.add(overlay)
+// Loading Overlay (moved under cloud phong material to allow it to render)
+const overlayGeometry = new THREE.PlaneGeometry(2, 2, 1, 1)
+const overlayMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    uniforms: {
+        uAlpha: {value: 1}
+    },
+    vertexShader: `
+        void main()
+        {
+            gl_Position = vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform float uAlpha;    
+
+        void main()
+        {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, uAlpha);
+        }
+    `
+})
+const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial)
+scene.add(overlay)
 
 /**
  * Sferical coordonates
@@ -342,19 +342,18 @@ function onMouseClick(event) {
     
     raycaster.setFromCamera(mouse, camera);
 
-    const intersects = raycaster.intersectObject(planet, false);
-    if(intersects[0]){
-        //console.clear()
-        console.log('clicked on: ', intersects[0].point)
-        const vectLatLng = getLatLng(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z)
-        const vect3D = sphereCoords(vectLatLng.x, vectLatLng.y, radius);
-        clickedLocationMesh.position.set(vect3D.x, vect3D.y, vect3D.z);
-        clickedLocUI.style.display = 'inline';
-        clickedLocation = new THREE.Vector3(vect3D.x, vect3D.y, vect3D.z)
-        clickedLngLatTextUI.textContent = `Latitude:${vectLatLng.x} Longitude:${vectLatLng.y}`;
+    if(loaded){
+        const intersects = raycaster.intersectObject(planet, false);
+        if(intersects[0]){
+            //console.clear()
+            const vectLatLng = getLatLng(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z)
+            const vect3D = sphereCoords(vectLatLng.x, vectLatLng.y, radius);
+            clickedLocationMesh.position.set(vect3D.x, vect3D.y, vect3D.z);
+            clickedLocUI.style.display = 'inline';
+            clickedLocation = new THREE.Vector3(vect3D.x, vect3D.y, vect3D.z)
+            clickedLngLatTextUI.textContent = `Latitude:${vectLatLng.x} Longitude:${vectLatLng.y}`;
+        }
     }
-
-    
 }
 
 //Check for click for parcel
@@ -380,6 +379,8 @@ renderer.domElement.addEventListener('mouseup', onMouseClick, false);
 const clock = new THREE.Clock()
 
 function animate() {
+    stats.begin()
+
     requestAnimationFrame(animate)
 
     const elapsedTime = clock.getElapsedTime()
@@ -394,6 +395,8 @@ function animate() {
     cloudMesh.rotation.y = 0.03 * elapsedTime;
 
     render()
+
+    stats.end()
 }
 
 function render() {
