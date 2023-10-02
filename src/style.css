@@ -34,10 +34,12 @@ body
     align-items: center;
     justify-content: center;
     display: none;
+    user-select: none;
 }
 
 #clickedLocation{
     display: none;
+    user-select: none;
 }
 
 .loadingContainer {

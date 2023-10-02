@@ -8,6 +8,7 @@ import vertexShader from './shaders/planet/vertex.glsl'
 import fragmentShader from './shaders/planet/fragment.glsl'
 import atmosphereVertexShader from './shaders/atmosphere/atmosphereVertex.glsl'
 import atmosphereFragmentShader from './shaders/atmosphere/atmosphereFragment.glsl'
+
 const gui = new lil.GUI()
 
 const stats = new Stats()
@@ -43,6 +44,10 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 camera.position.x = -50
 camera.position.z = 2
 
+function cameraDistToOrg() {
+    return Math.sqrt(camera.position.x * camera.position.x + camera.position.y * camera.position.y + camera.position.z * camera.position.z)
+}
+
 const renderer = new THREE.WebGLRenderer()
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
@@ -56,7 +61,7 @@ controls.minDistance = 20.3;
 controls.enabled = false; // controls disabled until loading complete
 controls.enablePan = false;
 controls.zoomToCursor = true;
-//disable right click movement
+//controls.zoomSpeed *= (cameraDistToOrg() - 20) / 50;
 
 // Loading 
 const loadingBGSIcon = document.querySelector('.loadingContainer')
@@ -287,7 +292,6 @@ const clickedLocationMesh = new THREE.Mesh(
     new THREE.MeshBasicMaterial({color: 'red'})
 )
 scene.add(clickedLocationMesh)
-let clickedLocation;
 
 function handleUIPosition(object, uiToPose, uiPosition) {
     if(object){
@@ -350,7 +354,7 @@ function onMouseClick(event) {
             const vect3D = sphereCoords(vectLatLng.x, vectLatLng.y, radius);
             clickedLocationMesh.position.set(vect3D.x, vect3D.y, vect3D.z);
             clickedLocUI.style.display = 'inline';
-            clickedLocation = new THREE.Vector3(vect3D.x, vect3D.y, vect3D.z)
+            //let clickedLocation = new THREE.Vector3(vect3D.x, vect3D.y, vect3D.z)
             clickedLngLatTextUI.textContent = `Latitude:${vectLatLng.x} Longitude:${vectLatLng.y}`;
         }
     }
@@ -374,6 +378,17 @@ function onWindowResize() {
 
 renderer.domElement.addEventListener('mouseup', onMouseClick, false);
 
+window.addEventListener("wheel", (event) => {
+    switch(event.deltaY){
+        case -100:
+            controls.zoomSpeed = (cameraDistToOrg() - 20) / 50 * 2.5;
+            break;
+        case 100:
+            controls.zoomSpeed = (cameraDistToOrg() - 20) / 50 * 4;
+            break;
+    }
+});
+
 // Scene tick update
 
 const clock = new THREE.Clock()
@@ -388,14 +403,14 @@ function animate() {
     // Animate selected location UI
     handleUIPosition(clickedLocationMesh, clickedLocUI, clickedUIPosition)
     handleUIPosition(playerBaseMesh, baseCoordsUI, baseUIPosition)
-
+    
     controls.update()
 
     planet.rotation.y = 0.02 * elapsedTime;
     cloudMesh.rotation.y = 0.03 * elapsedTime;
 
     render()
-
+    
     stats.end()
 }
 
