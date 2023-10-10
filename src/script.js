@@ -51,6 +51,7 @@ function cameraDistToOrg() {
 const renderer = new THREE.WebGLRenderer()
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
+//renderer.useLegacyLights = true;
 
     //Orbit Controls
 const controls = new OrbitControls(camera, renderer.domElement) 
@@ -60,8 +61,6 @@ controls.maxDistance = 70;
 controls.minDistance = 20.3;
 controls.enabled = false; // controls disabled until loading complete
 controls.enablePan = false;
-controls.zoomToCursor = true;
-//controls.zoomSpeed *= (cameraDistToOrg() - 20) / 50;
 
 // Loading 
 const loadingBGSIcon = document.querySelector('.loadingContainer')
@@ -145,10 +144,11 @@ planetMat.displacementMap = planetHeightMap;
 
 // Planet object
 const planet = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 1000, 1000), 
+    new THREE.SphereGeometry(radius, 300, 300), 
     planetMat
 );
 scene.add(planet);
+controls.target = planet.position;
 
 const atmosphere = new THREE.Mesh(
     new THREE.SphereGeometry(radius + 15, 100, 100), 
@@ -224,15 +224,7 @@ function sphereCoords(lat, lng, r) {
     let x = (r * Math.sin(theta) * Math.cos(phi));
     let y = (r * Math.sin(theta) * Math.sin(phi));
     let z = (r * Math.cos(theta));
-    // console.log('xyz on given lat lng: ', x, y, z)
 
-    // console.log('theta ', theta)
-    // console.log(Math.acos(z/Math.sqrt(x*x + y*y + z*z)))
-    // console.log('phi ', phi)
-    // console.log(CalculatePhi(x, y))
-
-    // console.log('lat ', 180/Math.PI * theta) // latitude
-    // console.log('lng ', 180/Math.PI * phi) //longitude
     return new THREE.Vector3(x, y, z);
 }
 
@@ -263,6 +255,11 @@ function CalculatePhi(x, y){
     return phi;
 }
 
+function OrientObjectOnSphere(object, objX, objY, objZ){
+    const normalVectors = new THREE.Vector3(objX, objY, objZ).normalize();
+    object.lookAt(object.position.clone().add(normalVectors));
+}
+
 //DOM
 const baseLocationUI = document.querySelector("#ownBase");
 const longlatTextUI = document.querySelector("#longlatText");
@@ -289,7 +286,7 @@ playerBaseMesh.position.set(playerBaseLocation.x, playerBaseLocation.y, playerBa
 
 const clickedLocationMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1, 2, 2),
-    new THREE.MeshBasicMaterial({color: 'red'})
+    new THREE.MeshBasicMaterial({color: 'red', side: THREE.DoubleSide})
 )
 scene.add(clickedLocationMesh)
 
@@ -322,22 +319,22 @@ function handleUIPosition(object, uiToPose, uiPosition) {
 
 //Lights
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.01)
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.02)
 scene.add(ambientLight);
 
-const pointLight = new THREE.PointLight(0xffffff, 0.6)
-pointLight.position.set(-200, 50, 50);
+const pointLight = new THREE.PointLight(0xffffff, 1, 200, 0)
+pointLight.position.set(-50, 0, 50);
 scene.add(pointLight)
 
-const pointLightHelper = new THREE.PointLightHelper(pointLight, 0.5);
-scene.add(pointLightHelper)
+// const pointLightHelper = new THREE.PointLightHelper(pointLight, 10);
+// scene.add(pointLightHelper)
 
 const boxHelper = new THREE.BoxHelper( pointLight, 0xffff00 );
 scene.add( boxHelper );
 
 // Raycast
 const raycaster = new THREE.Raycaster()
-
+const intersects = raycaster.intersectObject(planet, false);
 function onMouseClick(event) {
     const mouse = {
         x: (event.clientX / renderer.domElement.clientWidth) * 2 - 1,
@@ -349,12 +346,16 @@ function onMouseClick(event) {
     if(loaded){
         const intersects = raycaster.intersectObject(planet, false);
         if(intersects[0]){
-            //console.clear()
             const vectLatLng = getLatLng(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z)
-            const vect3D = sphereCoords(vectLatLng.x, vectLatLng.y, radius);
+            const vect3D = sphereCoords(vectLatLng.x, vectLatLng.y, radius+1);
             clickedLocationMesh.position.set(vect3D.x, vect3D.y, vect3D.z);
+
+            // set object upwards based on planet gravity
+            OrientObjectOnSphere(clickedLocationMesh, vect3D.x, vect3D.y, vect3D.z);
+
+            console.log(clickedLocationMesh.rotation);
+
             clickedLocUI.style.display = 'inline';
-            //let clickedLocation = new THREE.Vector3(vect3D.x, vect3D.y, vect3D.z)
             clickedLngLatTextUI.textContent = `Latitude:${vectLatLng.x} Longitude:${vectLatLng.y}`;
         }
     }
@@ -368,6 +369,8 @@ function onMouseClick(event) {
      */
 
 //Events
+const mouse = new THREE.Vector2()
+
 window.addEventListener('resize', onWindowResize, false)
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight
@@ -381,14 +384,14 @@ renderer.domElement.addEventListener('mouseup', onMouseClick, false);
 window.addEventListener("wheel", (event) => {
     switch(event.deltaY){
         case -100:
-            controls.zoomSpeed = (cameraDistToOrg() - 20) / 50 * 2.5;
+            controls.zoomSpeed = (cameraDistToOrg() - 20) / 50 * 2.5; // slow down on zoom in
             break;
         case 100:
             controls.zoomSpeed = (cameraDistToOrg() - 20) / 50 * 4;
             break;
     }
+    controls.rotateSpeed = (cameraDistToOrg() - 20) / 50;
 });
-
 // Scene tick update
 
 const clock = new THREE.Clock()
@@ -406,8 +409,8 @@ function animate() {
     
     controls.update()
 
-    planet.rotation.y = 0.02 * elapsedTime;
-    cloudMesh.rotation.y = 0.03 * elapsedTime;
+    planet.rotation.y = 0.01 * elapsedTime;
+    cloudMesh.rotation.y = 0.02 * elapsedTime;
 
     render()
     
