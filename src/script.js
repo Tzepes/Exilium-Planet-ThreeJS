@@ -36,10 +36,14 @@ document.body.appendChild(stats.dom)
  *      Long Lat functions
  */
 
-//Scene
+/*
+*   Scene
+ */
 const scene = new THREE.Scene()
 
-//Camera
+/**
+ * Camera
+ */
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
 camera.position.x = -50
 camera.position.z = 2
@@ -51,9 +55,11 @@ function cameraDistToOrg() {
 const renderer = new THREE.WebGLRenderer()
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
-//renderer.useLegacyLights = true;
 
-    //Orbit Controls
+/**
+ * Orbit Controls
+ */
+
 const controls = new OrbitControls(camera, renderer.domElement) 
 controls.enableDamping = true;
 controls.dampingFactor = 0.12;
@@ -62,9 +68,10 @@ controls.minDistance = 20.3;
 controls.enabled = false; // controls disabled until loading complete
 controls.enablePan = false;
 
-// Loading 
+/**
+ * Loading Manager  
+ */  
 const loadingBGSIcon = document.querySelector('.loadingContainer')
-    //Loaders
 let loaded = false;
 
 const loadingManager = new THREE.LoadingManager(
@@ -82,26 +89,6 @@ const loadingManager = new THREE.LoadingManager(
         loadingBGSIcon.style.display = 'inline';
     }
 )
-const gltfLoader = new GLTFLoader(loadingManager)
-
-//Textures
-const planetColorTexture = new THREE.TextureLoader(loadingManager).load("img/Marsv2.png");
-planetColorTexture.colorSpace = THREE.SRGBColorSpace;
-const planetNormalMap = new THREE.TextureLoader(loadingManager).load("img/Mars v2_normalMap.png")
-const planetHeightMap = new THREE.TextureLoader(loadingManager).load("img/Mars v2_heightMap.png")
-const cloudsTexture = new THREE.TextureLoader(loadingManager).load("img/2k_earth_clouds.jpg")
-const cubeTextureLoader = new THREE.CubeTextureLoader(loadingManager)
-
-//Environment Map
-const environmentMapTexture = cubeTextureLoader.load([
-    'img/envMap/px.png',
-    'img/envMap/nx.png',
-    'img/envMap/py.png',
-    'img/envMap/ny.png',
-    'img/envMap/pz.png',
-    'img/envMap/nz.png'
-])
-
 
 // Stars particles
 const particlesGeometry = new THREE.BufferGeometry()
@@ -131,9 +118,17 @@ const particlesMaterial = new THREE.PointsMaterial({
 const stars = new THREE.Points(particlesGeometry, particlesMaterial)
 scene.add(stars)
 
-//Material
-const radius = 20;
+/**
+ * Planet
+ */
 
+// Textures
+const planetColorTexture = new THREE.TextureLoader(loadingManager).load("img/Marsv2.png");
+planetColorTexture.colorSpace = THREE.SRGBColorSpace;
+const planetNormalMap = new THREE.TextureLoader(loadingManager).load("img/Mars v2_normalMap.png")
+const planetHeightMap = new THREE.TextureLoader(loadingManager).load("img/Mars v2_heightMap.png")
+
+//Material
 const planetMat = new THREE.MeshStandardMaterial({
     displacementScale: 0.5
 });
@@ -143,6 +138,7 @@ planetMat.normalMap = planetNormalMap;
 planetMat.displacementMap = planetHeightMap;
 
 // Planet object
+const radius = 20;
 const planet = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 300, 300), 
     planetMat
@@ -161,7 +157,13 @@ const atmosphere = new THREE.Mesh(
 );
 scene.add(atmosphere)
 
-//Clouds texture
+/**
+ * Clouds
+ */
+
+// Cloud textures
+const cloudsTexture = new THREE.TextureLoader(loadingManager).load("img/2k_earth_clouds.jpg")
+
 const cloudMesh = new THREE.Mesh( //TODO: hide clouds after a certain zoom
     new THREE.SphereGeometry(radius+0.4, 32, 32), 
     new THREE.MeshPhongMaterial({
@@ -174,12 +176,6 @@ const cloudMesh = new THREE.Mesh( //TODO: hide clouds after a certain zoom
         depthWrite: false
 }));
 scene.add(cloudMesh);
-
-const cubeEnvMat = new THREE.MeshStandardMaterial();
-cubeEnvMat.metalness = 0.95
-cubeEnvMat.roughness = 0
-cubeEnvMat.envMap = environmentMapTexture;
-cubeEnvMat.side = THREE.DoubleSide;
 
     //Debug Material
 // gui.add(planetMat, 'displacementScale').min(0).max(20).step(0.00001)
@@ -276,14 +272,21 @@ const clickedUIPosition = new THREE.Vector3();
 let uiPositionOffset = new THREE.Vector3(); 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
+/**
+ * Player base mesh placeholder
+ */
 const playerBaseMesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.5, 20, 20),
     new THREE.MeshBasicMaterial({color: 'cyan'})
 )
 scene.add(playerBaseMesh);
+
 let playerBaseLocation = sphereCoords(latitude, longitude, radius);
 playerBaseMesh.position.set(playerBaseLocation.x, playerBaseLocation.y, playerBaseLocation.z);
 
+/**
+ * Clicked location effect placeholder
+ */
 const clickedLocationMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1, 2, 2),
     new THREE.MeshBasicMaterial({color: 'red', side: THREE.DoubleSide})
@@ -310,12 +313,6 @@ function handleUIPosition(object, uiToPose, uiPosition) {
         uiToPose.style.left = `${uiPosition.x}px`;
     }
 }
-// console.log(location.x, location.y, location.z)
-
-
-//Env Map
-//scene.background = environmentMapTexture
-
 
 //Lights
 
@@ -392,8 +389,9 @@ window.addEventListener("wheel", (event) => {
     }
     controls.rotateSpeed = (cameraDistToOrg() - 20) / 50;
 });
-// Scene tick update
 
+
+// Scene tick update
 const clock = new THREE.Clock()
 
 function animate() {
